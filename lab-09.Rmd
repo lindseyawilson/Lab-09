@@ -91,7 +91,7 @@ ggplot(evals,
             y = score)) +
   geom_jitter() + 
   geom_smooth(method = "lm", se = FALSE, color = "Orange", fullrange = TRUE) +
-  labs(title = "Average Professor Evaluation over Average Beauty Rating")
+  labs(title = "Average Professor Evaluation vs. Average Beauty Rating")
 ```
 
 ### Exercise 6
@@ -115,5 +115,85 @@ This means that about 3.5% of the variance in `score` is explained by variance i
 
 ## Part 3
 
-## 
-For Exercise 12, relevel() function can be helpful! 
+### Exercise 9
+
+Below is a linear regression model that predicts score from gender:
+
+```{r gender-model}
+m_gen <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ gender, data = evals) %>%
+  tidy()
+
+m_gen
+```
+
+This output produces the following equation: `score` = 0.1415(`gender`) + 4.0928, where a gender code of 0 means female and a gender code of 1 mean male. This means that female professors on average recieve evaluations of 4.0928, and male professors on average score 0.1415 points higher than that.
+
+### Exercise 10
+
+The equation for female professors is: `score` = 4.09
+The equation for male professors is: `score` = 4.23
+
+### Exercise 11
+
+```{r rank-model}
+m_rank <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ rank, data = evals) %>%
+  tidy()
+
+m_rank
+
+```
+
+Based on this, it looks like the average evaluation for a teaching track professor is 4.28 and that this decreases by 0.13 points on average for tenure track professors and 0.15 points on average for tenured professors. The overall equation is `score` = -0.1297(`tenure track`) -0.1452(`tenured`) + 4.2843.
+
+### Exercise 12 + 13
+
+Let's adjust create a new rank variable where "tenure track" is the new baseline level, and use it to create a new linear model:
+
+```{r adjust-baseline}
+evals <- evals %>%
+  mutate(rank_relevel = relevel(evals$rank, ref = 2 ))
+
+m_rank_relevel <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ rank_relevel, data = evals)
+
+m_rank_relevel
+
+glance(m_rank_relevel)$r.squared
+```
+
+Based on this output, it looks like the predicted score for a tenure track professor is 4.15, which increases by 0.13 if you're a teaching professor and decreases by .015 if you're a tenured professor. The overall equation would be `score` = 0.1297(`teaching`) - 0.0155(`tenured`) + 4.1546.
+
+The R-squared for this model is 0.0116, meaning that rank explains just over 1% of the variance in evaluations
+
+### Exercise 14
+
+Here we'll create a new variable called `tenure_eligible` that takes the value of "no" for teaching professors and "yes" for tenure and tenure track professors:
+
+```{r tenure-eligible}
+evals <- evals %>%
+  mutate(tenure_eligible = case_when(evals$rank == "teaching" ~ "no",
+                                     evals$rank == "tenured" ~ "yes",
+                                     evals$rank == "tenure track" ~ "yes"))
+```
+
+### Exercise 15
+
+And we can now use this new variable in a linear regression to predict score:
+
+```{r tenure-eligible-lm}
+m_tenure_eligible <- linear_reg() %>%
+  set_engine("lm") %>%
+  fit(score ~ tenure_eligible, data = evals)
+
+tidy(m_tenure_eligible)
+
+glance(m_tenure_eligible)$r.squared
+```
+Based on this output, it looks like the average score for a professor without tenure eligibility is 4.28, which decreases by 0.14 once they become eligible for tenure. The overall equation is `score` = -0.1405(`tenure_eligible`) + 4.2843.
+
+Also,  R-squared is 0.0115, which means that tenure eligibility explains. 1.15% of evaluation variance. This is just slightly less than the R-squared for `m_rank_relevel`, meaning that knowing whether you're a tenured vs. tenure track professor does allow us to predict score slightly more accurately, but not by much.
